@@ -4,6 +4,7 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
   root: 'src',
+  base: './',
   publicDir: resolve(__dirname, 'public'),
   server: {
     port: 5173,
