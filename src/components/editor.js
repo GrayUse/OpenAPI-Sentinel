@@ -3,13 +3,30 @@
  * Wraps Monaco with YAML/JSON support, custom dark theme, and marker management.
  */
 
+import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+
+window.MonacoEnvironment = {
+  getWorker(_, label) {
+    return new EditorWorker();
+  }
+};
+
 let editor = null;
 let editorModel = null;
+
+// Detect language from content
+function detectLanguage(content) {
+  const trimmed = content.trimStart();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    return 'json';
+  }
+  return 'yaml';
+}
 
 /**
  * Initialize Monaco editor in the given container.
  */
-export async function initEditor(containerId, { onChange, onCursorChange, onLanguageChange }) {
+export async function initEditor(containerId, { onChange, onCursorChange, onLanguageChange, onScrollChange }) {
   const monaco = await import('monaco-editor');
 
   // Define custom dark theme
@@ -83,15 +100,6 @@ export async function initEditor(containerId, { onChange, onCursorChange, onLang
 
   editorModel = editor.getModel();
 
-  // Detect language from content
-  function detectLanguage(content) {
-    const trimmed = content.trimStart();
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-      return 'json';
-    }
-    return 'yaml';
-  }
-
   // Listen for content changes
   editorModel.onDidChangeContent(() => {
     const content = editorModel.getValue();
@@ -107,6 +115,13 @@ export async function initEditor(containerId, { onChange, onCursorChange, onLang
   // Listen for cursor changes
   editor.onDidChangeCursorPosition((e) => {
     onCursorChange?.(e.position.lineNumber, e.position.column);
+  });
+
+  // Listen for scroll changes
+  editor.onDidScrollChange((e) => {
+    if (e.scrollTopChanged) {
+      onScrollChange?.(e.scrollTop, editor.getScrollHeight());
+    }
   });
 
   // Handle resize
@@ -158,9 +173,53 @@ export function setMarkers(diagnostics) {
  */
 export function revealLine(line) {
   if (!editor) return;
-  editor.revealLineInCenter(line);
+  
+  // First, reveal the line roughly so Monaco schedules layout
+  editor.revealLine(line);
   editor.setPosition({ lineNumber: line, column: 1 });
   editor.focus();
+  
+  // Monaco calculates virtual line heights asynchronously.
+  // We apply the exact Top offset across a few frames to guarantee precision.
+  [10, 50, 150].forEach(delay => {
+    setTimeout(() => {
+      if (!editor) return;
+      const top = editor.getTopForLineNumber(line);
+      editor.setScrollTop(top);
+    }, delay);
+  });
+}
+
+/**
+ * Reveal a specific YAML node based on its object path.
+ */
+export async function jumpToNode(pathArray) {
+  if (!editorModel) return;
+  const content = editorModel.getValue();
+  if (detectLanguage(content) !== 'yaml') return;
+  
+  try {
+    const { default: YAML } = await import('yaml');
+    const doc = YAML.parseDocument(content);
+    const node = doc.getIn(pathArray, true);
+    if (node && node.range) {
+      const charIndex = node.range[0];
+      const line = content.slice(0, charIndex).split('\n').length;
+      revealLine(line);
+      
+      // Briefly highlight the line
+      import('monaco-editor').then((monaco) => {
+        const decoration = {
+          range: new monaco.Range(line, 1, line, 1),
+          options: { isWholeLine: true, className: 'flash-highlight' }
+        };
+        const id = editor.deltaDecorations([], [decoration]);
+        setTimeout(() => editor.deltaDecorations(id, []), 1500);
+      });
+    }
+  } catch (err) {
+    console.error('Failed to jump to node:', err);
+  }
 }
 
 /**
@@ -172,3 +231,14 @@ export function setCursorListener(cb) {
     cb(e.position.lineNumber, e.position.column);
   });
 }
+
+/**
+ * Set proportional scroll.
+ */
+export function setEditorScroll(percent) {
+  if (!editor) return;
+  const scrollHeight = editor.getScrollHeight();
+  editor.setScrollTop(percent * scrollHeight);
+}
+
+window.__setEditorScroll = setEditorScroll;

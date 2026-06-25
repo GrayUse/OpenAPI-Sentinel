@@ -3,13 +3,18 @@
  * Orchestrates editor, linting, docs preview, mock server, and rule config.
  */
 
-import { initEditor, getEditorContent, setEditorContent, setCursorListener, setMarkers, revealLine } from './components/editor.js';
-import { initSidebar } from './components/sidebar.js';
+import { initEditor, getEditorContent, setEditorContent, setCursorListener, setMarkers, revealLine, jumpToNode } from './components/editor.js';
+import { updateStructureTree } from './components/sidebar.js';
 import { renderProblems } from './components/problems-panel.js';
 import { renderDocsPreview } from './components/docs-preview.js';
 import { initMockPanel } from './components/mock-panel.js';
 import { initRulesPanel, getRuleConfig } from './components/rule-config.js';
 import { lintSpec } from './components/linter-client.js';
+import { initFormEditor, renderFormEditor, isFormFocused, scrollFormToPath } from './components/form-editor.js';
+
+// Expose globally for inline event handlers
+window.__jumpToNode = jumpToNode;
+window.__scrollFormToPath = scrollFormToPath;
 
 // ── State ──
 const state = {
@@ -78,8 +83,14 @@ async function lintCurrentSpec() {
       revealLine(line);
     });
 
-    // Update spec info
+    // Update spec info and structure
     updateSpecInfo(data.meta);
+    updateStructureTree(data.meta);
+    
+    // Render side-by-side Form View (skip if user is actively typing in the form to prevent focus loss)
+    if (!isFormFocused) {
+      renderFormEditor(state.currentSpec);
+    }
 
     // Update status
     if (data.stats.errors > 0) {
@@ -119,88 +130,28 @@ function updateSpecInfo(meta) {
   title.textContent = meta.title || 'Untitled';
 }
 
-// ── Import / Export ──
-let fileHandle = null;
-
+// ── File Actions ──
 function initFileActions() {
-  const fileInput = document.getElementById('file-input');
-  const btnImport = document.getElementById('btn-import');
   const btnExport = document.getElementById('btn-export');
 
-  btnImport.addEventListener('click', async () => {
-    try {
-      if (!window.showOpenFilePicker) {
-        fileInput.click();
-        return;
-      }
-      const [handle] = await window.showOpenFilePicker({
-        types: [{
-          description: 'OpenAPI Spec Files',
-          accept: { 'text/yaml': ['.yaml', '.yml'], 'application/json': ['.json'] }
-        }]
-      });
-      fileHandle = handle;
-      const file = await fileHandle.getFile();
-      const text = await file.text();
-      setEditorContent(text);
-      showToast(`Loaded: ${file.name}`, 'success');
-      
-      const titleEl = document.getElementById('spec-title');
-      if (titleEl) titleEl.textContent = file.name;
-    } catch (err) {
-      if (err.name !== 'AbortError') console.error(err);
-    }
-  });
-
-  fileInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const text = await file.text();
-    setEditorContent(text);
-    showToast(`Loaded: ${file.name}`, 'success');
-    
-    const titleEl = document.getElementById('spec-title');
-    if (titleEl) titleEl.textContent = file.name;
-    
-    fileHandle = null;
-    fileInput.value = '';
-  });
-
-  btnExport.addEventListener('click', async () => {
+  btnExport?.addEventListener('click', () => {
     const content = getEditorContent();
     if (!content) return;
     
     try {
-      if (!window.showSaveFilePicker) {
-        // Fallback for unsupported browsers
-        const isJson = content.trimStart().startsWith('{');
-        const ext = isJson ? 'json' : 'yaml';
-        const blob = new Blob([content], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `openapi-spec.${ext}`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast('Spec exported', 'success');
-        return;
-      }
-
-      if (!fileHandle) {
-        fileHandle = await window.showSaveFilePicker({
-          suggestedName: 'openapi-spec.yaml',
-          types: [{
-            description: 'YAML File',
-            accept: { 'text/yaml': ['.yaml', '.yml'] }
-          }]
-        });
-      }
-      const writable = await fileHandle.createWritable();
-      await writable.write(content);
-      await writable.close();
-      showToast('Saved successfully', 'success');
+      const isJson = content.trimStart().startsWith('{');
+      const ext = isJson ? 'json' : 'yaml';
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `openapi-spec.${ext}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Spec exported', 'success');
     } catch (err) {
-      if (err.name !== 'AbortError') console.error(err);
+      console.error(err);
+      showToast('Failed to export', 'error');
     }
   });
 }
@@ -231,6 +182,19 @@ function formatBytes(bytes) {
 // ── Initialize ──
 async function init() {
   // Init Monaco editor
+  let isEditorScrolling = false;
+  let isFormScrolling = false;
+  let programmaticScrollTimeout = null;
+  window.__isProgrammaticScroll = false;
+
+  window.__triggerNavigate = (pathArray) => {
+    window.__isProgrammaticScroll = true;
+    window.__jumpToNode(pathArray);
+    window.__scrollFormToPath(pathArray);
+    clearTimeout(programmaticScrollTimeout);
+    programmaticScrollTimeout = setTimeout(() => { window.__isProgrammaticScroll = false; }, 100);
+  };
+
   await initEditor('monaco-editor', {
     onChange: scheduleLint,
     onCursorChange: (line, col) => {
@@ -239,16 +203,52 @@ async function init() {
     onLanguageChange: (lang) => {
       document.getElementById('status-format').textContent = lang.toUpperCase();
     },
+    onScrollChange: (scrollTop, scrollHeight) => {
+      if (window.__isProgrammaticScroll) {
+        clearTimeout(programmaticScrollTimeout);
+        programmaticScrollTimeout = setTimeout(() => { window.__isProgrammaticScroll = false; }, 100);
+        return;
+      }
+      if (isFormScrolling) return;
+      
+      const formWrapper = document.getElementById('form-scroll-wrapper');
+      if (!formWrapper) return;
+      isEditorScrolling = true;
+      const percent = scrollTop / scrollHeight;
+      formWrapper.scrollTop = percent * formWrapper.scrollHeight;
+      setTimeout(() => { isEditorScrolling = false; }, 50);
+    }
   });
+
+  // Init Form Scroll Sync
+  const formWrapper = document.getElementById('form-scroll-wrapper');
+  if (formWrapper) {
+    formWrapper.addEventListener('scroll', () => {
+      if (window.__isProgrammaticScroll) {
+        clearTimeout(programmaticScrollTimeout);
+        programmaticScrollTimeout = setTimeout(() => { window.__isProgrammaticScroll = false; }, 100);
+        return;
+      }
+      if (isEditorScrolling) return;
+      
+      isFormScrolling = true;
+      const percent = formWrapper.scrollTop / formWrapper.scrollHeight;
+      if (window.__setEditorScroll) {
+        window.__setEditorScroll(percent);
+      }
+      setTimeout(() => { isFormScrolling = false; }, 50);
+    });
+  }
 
   // Init UI components
   initTabs();
   initFileActions();
-  initSidebar((content) => {
-    setEditorContent(content);
-  });
   initMockPanel(() => getEditorContent());
   initRulesPanel();
+  initFormEditor((newYaml) => {
+    setEditorContent(newYaml);
+    scheduleLint();
+  });
 
   // Load default sample
   try {

@@ -6,12 +6,13 @@
 
 | Feature | Description |
 |:---|:---|
-| ✅ **OpenAPI 3.0/3.1 Linting** | Powered by Redocly — deep validation with 50+ built-in rules |
-| ✅ **Real-time Editor** | Monaco Editor with YAML/JSON auto-detection, syntax highlighting |
+| ✅ **OpenAPI 3.0/3.1 Linting** | Powered by Redocly — deep validation with 50+ built-in rules, running entirely in your browser |
+| ✅ **Real-time Editor** | Monaco Editor with YAML/JSON auto-detection, syntax highlighting, and virtual scroll syncing |
+| ✅ **Visual Schema Editor** | Powerful Form View for easy Models/Schemas CRUD without writing YAML by hand |
 | ✅ **API Documentation** | Instant preview with Scalar API Reference |
 | ✅ **Mock Server** | One-click mock with auto-generated responses from schemas |
 | ✅ **Rule Management** | Configure linting severity per-rule with preset modes |
-| ✅ **Import/Export** | Load and save OpenAPI specs (YAML/JSON) |
+| ✅ **Import/Export** | Stream download export for zero-friction spec saving |
 
 ## Why Sentinel?
 
@@ -21,6 +22,7 @@
 | Install Size | ~300MB | ~50MB |
 | Startup | 5-10s | <2s |
 | CPU (idle) | 3-8% | <1% |
+| Architecture | Desktop App | 100% Pure Client-Side SPA |
 
 ## Quick Start
 
@@ -28,7 +30,7 @@
 # Install dependencies
 npm install
 
-# Start dev server (frontend + backend)
+# Start dev server
 npm run dev
 ```
 
@@ -37,34 +39,32 @@ Open `http://localhost:5173` in your browser.
 ## Tech Stack
 
 - **Frontend**: Vite + Vanilla JS + Monaco Editor
-- **Backend**: Hono (ultra-lightweight HTTP framework, 12KB)
-- **Linting**: Redocly OpenAPI Core
+- **AST Manipulation**: `yaml`
+- **Linting**: `@redocly/openapi-core` (bundled via `vite-plugin-node-polyfills`)
 - **Docs**: Scalar API Reference
-- **Mock**: Custom schema-based faker (zero heavy deps)
+- **Mock**: Custom schema-based faker using `json-schema-faker`
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────┐
-│           Browser (SPA)              │
-│  ┌────────┐ ┌──────┐ ┌───────────┐  │
-│  │ Monaco  │ │Scalar│ │Mock Panel │  │
-│  │ Editor  │ │ Docs │ │  + Rules  │  │
-│  └────┬───┘ └──────┘ └─────┬─────┘  │
-│       │                     │        │
-│  ┌────▼─────────────────────▼────┐   │
-│  │      Fetch API → /api/*       │   │
-│  └───────────────┬───────────────┘   │
-└──────────────────┼───────────────────┘
-                   │
-┌──────────────────▼───────────────────┐
-│         Hono Server (:3001)          │
-│  ┌──────────┐ ┌────────┐ ┌───────┐  │
-│  │ Redocly  │ │  Mock   │ │ File  │  │
-│  │ Linter   │ │ Router  │ │Handler│  │
-│  └──────────┘ └────────┘ └───────┘  │
-└──────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│                      Browser (SPA)                     │
+│  ┌────────┐ ┌─────────────┐ ┌──────────┐ ┌──────────┐  │
+│  │ Monaco │ │ Form Editor │ │ Scalar   │ │ Mock/Rule│  │
+│  │ Editor │ │ (Visual)    │ │ Docs     │ │ Panel    │  │
+│  └────┬───┘ └──────┬──────┘ └────┬─────┘ └─────┬────┘  │
+│       │            │             │             │       │
+│  ┌────▼────────────▼─────────────▼─────────────▼────┐  │
+│  │               State Management & AST             │  │
+│  └───────────────────────┬──────────────────────────┘  │
+│                          │                             │
+│  ┌───────────────────────▼──────────────────────────┐  │
+│  │      Redocly OpenAPI Core (Running in-browser)   │  │
+│  └──────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────┘
 ```
+
+> **Note:** Sentinel has evolved to be 100% client-side. The previous Hono backend dependency has been entirely removed to ensure maximum performance, offline capability, and zero-latency linting via Web Workers.
 
 ## License
 

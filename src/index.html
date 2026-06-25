@@ -47,7 +47,7 @@
         <nav class="tab-nav" id="main-tabs">
           <button class="tab-btn active" data-tab="editor">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3h12M2 6h8M2 9h10M2 12h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            Editor
+            Design & Code
           </button>
           <button class="tab-btn" data-tab="docs">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 2v4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -64,15 +64,10 @@
         </nav>
       </div>
       <div class="topbar-right">
-        <button class="btn btn-ghost" id="btn-import" title="Import spec file">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Import
-          </button>
         <button class="btn btn-ghost" id="btn-export" title="Export spec">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 10V2M5 5l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             Export
           </button>
-        <input type="file" id="file-input" accept=".yaml,.yml,.json" hidden />
       </div>
     </header>
 
@@ -83,13 +78,7 @@
         <div class="editor-layout">
           <!-- Sidebar -->
           <aside id="sidebar" class="sidebar">
-            <div class="sidebar-section">
-              <h3 class="sidebar-title">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                Samples
-              </h3>
-              <div id="sample-list" class="sidebar-list"></div>
-            </div>
+
             <div class="sidebar-section">
               <h3 class="sidebar-title">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L15 5v6l-7 4-7-4V5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -99,21 +88,29 @@
             </div>
           </aside>
 
-          <!-- Editor + Problems -->
-          <div class="editor-main">
-            <div id="monaco-editor" class="monaco-container"></div>
-            <div id="problems-panel" class="problems-panel collapsed">
-              <div class="problems-header" id="problems-header">
-                <div class="problems-title">
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l7 13H1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6v3M8 11.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                  Problems
+          <!-- Editor + Form Split View -->
+          <div class="editor-main" style="display: flex; flex-direction: row; width: 100%;">
+            <!-- Left: Monaco Editor -->
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+              <div id="monaco-editor" class="monaco-container"></div>
+              <div id="problems-panel" class="problems-panel collapsed">
+                <div class="problems-header" id="problems-header">
+                  <div class="problems-title">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l7 13H1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6v3M8 11.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    Problems
+                  </div>
+                  <div class="problems-stats" id="problems-stats"></div>
+                  <button class="problems-toggle" id="problems-toggle">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
                 </div>
-                <div class="problems-stats" id="problems-stats"></div>
-                <button class="problems-toggle" id="problems-toggle">
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
+                <div class="problems-body" id="problems-body"></div>
               </div>
-              <div class="problems-body" id="problems-body"></div>
+            </div>
+            
+            <!-- Right: Form View -->
+            <div id="form-scroll-wrapper" style="flex: 1; min-width: 0; border-left: 1px solid var(--c-border); overflow-y: auto; background: var(--c-bg-surface);">
+              <div id="form-container" class="form-container" style="padding: 24px;"></div>
             </div>
           </div>
         </div>

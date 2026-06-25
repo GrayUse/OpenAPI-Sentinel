@@ -65,8 +65,11 @@ export async function lintSpec(source, userConfig = {}) {
           title: doc.info?.title || 'Untitled',
           version: doc.info?.version || '',
           openapi: doc.openapi || doc.swagger || '',
-          pathCount: Object.keys(doc.paths || {}).length,
-          schemaCount: Object.keys(doc.components?.schemas || {}).length,
+          paths: Object.entries(doc.paths || {}).map(([pathName, pathObj]) => ({
+            name: pathName,
+            methods: Object.keys(pathObj || {}).filter(m => ['get','post','put','delete','patch','options','head'].includes(m.toLowerCase()))
+          })),
+          schemas: Object.keys(doc.components?.schemas || {}),
         };
       }
     } catch {

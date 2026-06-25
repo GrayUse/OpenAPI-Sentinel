@@ -1,50 +1,7 @@
 /**
  * Sidebar Component
- * Provides sample file loading and spec structure navigation.
+ * Provides spec structure navigation.
  */
-
-export function initSidebar(onLoadContent) {
-  loadSampleList(onLoadContent);
-}
-
-async function loadSampleList(onLoadContent) {
-  const container = document.getElementById('sample-list');
-  const samples = ['petstore.yaml'];
-  
-  container.innerHTML = '';
-  samples.forEach((name) => {
-    const btn = document.createElement('button');
-    btn.className = 'sidebar-item';
-    btn.innerHTML = `
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-        <path d="M3 2h7l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      ${name}
-    `;
-    btn.addEventListener('click', () => loadSample(name, onLoadContent));
-    container.appendChild(btn);
-  });
-}
-
-async function loadSample(name, onLoadContent) {
-  try {
-    const res = await fetch(`./sample/${name}`);
-    if (!res.ok) throw new Error('Network response was not ok');
-    const content = await res.text();
-    
-    if (content) {
-      onLoadContent(content);
-      window.__showToast?.(`Loaded: ${name}`, 'success');
-
-      // Highlight active item
-      document.querySelectorAll('#sample-list .sidebar-item').forEach((item) => {
-        item.classList.toggle('active', item.textContent.trim() === name);
-      });
-    }
-  } catch (err) {
-    window.__showToast?.(`Failed to load ${name}`, 'error');
-  }
-}
 
 /**
  * Update the spec structure tree based on parsed spec metadata.
@@ -56,45 +13,63 @@ export function updateStructureTree(spec) {
     return;
   }
 
-  const items = [];
+  let html = '';
 
   // Info
-  if (spec.info) {
-    items.push({ icon: 'info', label: 'Info', badge: spec.info.version || '' });
-  }
-
-  // Servers
-  if (spec.servers) {
-    items.push({ icon: 'server', label: 'Servers', badge: spec.servers.length });
+  if (spec.title) {
+    html += `
+      <div class="sidebar-item clickable" onclick="window.__triggerNavigate(['info'])">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">${getStructureIcon('info')}</svg>
+        Info
+        <span class="badge">${spec.version || ''}</span>
+      </div>`;
   }
 
   // Paths
-  if (spec.paths) {
-    const pathCount = Object.keys(spec.paths).length;
-    items.push({ icon: 'path', label: 'Paths', badge: pathCount });
+  if (spec.paths && spec.paths.length > 0) {
+    html += `
+      <div class="sidebar-item" style="opacity: 0.6; padding-top: 12px; pointer-events: none;">
+        PATHS
+      </div>`;
+    spec.paths.forEach(pathItem => {
+      const pathName = typeof pathItem === 'string' ? pathItem : pathItem.name;
+      const methods = pathItem.methods || [];
+      
+      html += `
+        <div class="sidebar-item clickable" onclick="window.__triggerNavigate(['paths', '${pathName}'])">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">${getStructureIcon('path')}</svg>
+          <span style="font-family: var(--ff-mono, monospace); font-size: 11px;">${pathName}</span>
+        </div>`;
+        
+      methods.forEach(method => {
+        const methodColors = {
+          get: '#3b82f6', post: '#10b981', put: '#f59e0b', delete: '#ef4444', patch: '#8b5cf6'
+        };
+        const color = methodColors[method] || '#9ca3af';
+        html += `
+          <div class="sidebar-item clickable" style="padding-left: 28px; padding-top: 4px; padding-bottom: 4px; border-left: 1px solid var(--c-border); margin-left: 10px;" onclick="window.__triggerNavigate(['paths', '${pathName}', '${method}'])">
+            <span style="color: ${color}; font-weight: bold; font-size: 9px; width: 36px; text-transform: uppercase;">${method}</span>
+          </div>`;
+      });
+    });
   }
 
   // Schemas
-  if (spec.components?.schemas) {
-    const schemaCount = Object.keys(spec.components.schemas).length;
-    items.push({ icon: 'schema', label: 'Schemas', badge: schemaCount });
+  if (spec.schemas && spec.schemas.length > 0) {
+    html += `
+      <div class="sidebar-item" style="opacity: 0.6; padding-top: 12px; pointer-events: none;">
+        SCHEMAS
+      </div>`;
+    spec.schemas.forEach(schema => {
+      html += `
+        <div class="sidebar-item clickable" onclick="window.__triggerNavigate(['components', 'schemas', '${schema}'])">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">${getStructureIcon('schema')}</svg>
+          <span style="font-family: var(--font-mono); font-size: 11px;">${schema}</span>
+        </div>`;
+    });
   }
 
-  // Security
-  if (spec.components?.securitySchemes) {
-    const secCount = Object.keys(spec.components.securitySchemes).length;
-    items.push({ icon: 'lock', label: 'Security', badge: secCount });
-  }
-
-  container.innerHTML = items.map((item) => `
-    <div class="sidebar-item">
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-        ${getStructureIcon(item.icon)}
-      </svg>
-      ${item.label}
-      <span class="badge">${item.badge}</span>
-    </div>
-  `).join('');
+  container.innerHTML = html || '<div class="sidebar-item" style="opacity:0.4">Empty Spec</div>';
 }
 
 function getStructureIcon(type) {
