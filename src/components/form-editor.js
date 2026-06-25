@@ -310,6 +310,48 @@ export async function renderFormEditor(yamlContent) {
     html += `</div></div>`;
 
     container.innerHTML = html;
+    
+    // Set up reverse sync
+    window.__syncEditorToFormScroll = () => {
+      const wrapper = document.getElementById('form-scroll-wrapper');
+      if (!wrapper) return;
+      
+      const nodes = container.querySelectorAll('.form-node-operation, .form-node-schema');
+      let closestNode = null;
+      let minDiff = Infinity;
+      const wrapperRect = wrapper.getBoundingClientRect();
+      
+      for (const node of nodes) {
+        const rect = node.getBoundingClientRect();
+        // Distance from the top of the wrapper
+        // We want the node that is at the top of the viewport or closest to it
+        const diff = Math.abs(rect.top - wrapperRect.top);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestNode = node;
+        }
+      }
+      
+      if (closestNode) {
+        let pathArray = null;
+        if (closestNode.classList.contains('form-node-operation')) {
+          pathArray = ['paths', closestNode.dataset.pathName, closestNode.dataset.method];
+        } else if (closestNode.classList.contains('form-node-schema')) {
+          pathArray = ['components', 'schemas', closestNode.dataset.schemaName];
+        }
+        
+        if (pathArray && window.__jumpToNode) {
+          const pathStr = JSON.stringify(pathArray);
+          if (window.__lastSyncedPath !== pathStr) {
+            window.__lastSyncedPath = pathStr;
+            window.__isProgrammaticScroll = true;
+            window.__jumpToNode(pathArray);
+            if (window.programmaticScrollTimeout) clearTimeout(window.programmaticScrollTimeout);
+            window.programmaticScrollTimeout = setTimeout(() => { window.__isProgrammaticScroll = false; }, 100);
+          }
+        }
+      }
+    };
 
     // Attach Input Listeners
     container.querySelectorAll('.form-input').forEach(input => {

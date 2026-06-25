@@ -231,8 +231,10 @@ async function init() {
       if (isEditorScrolling) return;
       
       isFormScrolling = true;
-      const percent = formWrapper.scrollTop / formWrapper.scrollHeight;
-      if (window.__setEditorScroll) {
+      if (window.__syncEditorToFormScroll) {
+        window.__syncEditorToFormScroll();
+      } else if (window.__setEditorScroll) {
+        const percent = formWrapper.scrollTop / formWrapper.scrollHeight;
         window.__setEditorScroll(percent);
       }
       setTimeout(() => { isFormScrolling = false; }, 50);
