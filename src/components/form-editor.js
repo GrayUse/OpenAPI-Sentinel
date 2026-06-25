@@ -158,12 +158,34 @@ export async function renderFormEditor(yamlContent) {
                           const reqRef = reqSchema.$ref;
                           const reqProps = reqSchema.properties || {};
                           
+                          // Resolve properties for preview
+                          let resolvedProps = { ...reqProps };
+                          if (reqRef) {
+                            const refName = reqRef.split('/').pop();
+                            const refSchema = spec.components?.schemas?.[refName];
+                            if (refSchema && refSchema.properties) {
+                              resolvedProps = { ...resolvedProps, ...refSchema.properties };
+                            }
+                          }
+                          
                           if (reqRef || Object.keys(reqSchema).length === 0) {
                             return `
-                              <div style="display: flex; gap: 8px; align-items: center;">
+                              <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
                                 <span style="font-size: 0.8rem; opacity: 0.7; font-family: var(--ff-mono);">$ref:</span>
                                 <input type="text" class="form-input" data-path="paths['${pathName}'].${method}.requestBody.content['application/json'].schema.$ref" value="${escapeHtml(reqRef || '')}" placeholder="#/components/schemas/ModelName" style="flex: 1; padding: 4px 8px; background: transparent; border: 1px solid var(--c-border); border-radius: 4px; color: var(--c-text-primary); font-family: var(--ff-mono); font-size: 0.8rem;">
                               </div>
+                              ${reqRef ? `
+                                <div style="font-size: 0.75rem; font-weight: bold; margin-bottom: 4px; color: var(--c-text-secondary);">Resolved Properties (Preview):</div>
+                                <div style="display: grid; gap: 4px; padding-left: 8px; border-left: 2px solid var(--c-border);">
+                                  ${Object.entries(resolvedProps).map(([pName, pObj]) => `
+                                    <div style="display: flex; gap: 8px; align-items: center; font-size: 0.8rem; padding: 4px; background: rgba(0,0,0,0.1); border-radius: 4px;">
+                                      <span style="font-family: var(--ff-mono); width: 100px; font-weight: bold;">${escapeHtml(pName)}</span>
+                                      <span style="color: var(--c-text-secondary); opacity: 0.8;">${escapeHtml(pObj.type || 'string')}</span>
+                                    </div>
+                                  `).join('')}
+                                  ${Object.keys(resolvedProps).length === 0 ? '<div style="font-size: 0.75rem; opacity: 0.5;">No properties found in referenced model.</div>' : ''}
+                                </div>
+                              ` : ''}
                             `;
                           } else {
                             return `

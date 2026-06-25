@@ -7,7 +7,6 @@ import { initEditor, getEditorContent, setEditorContent, setCursorListener, setM
 import { updateStructureTree } from './components/sidebar.js';
 import { renderProblems } from './components/problems-panel.js';
 import { renderDocsPreview } from './components/docs-preview.js';
-import { initMockPanel } from './components/mock-panel.js';
 import { initRulesPanel, getRuleConfig } from './components/rule-config.js';
 import { lintSpec } from './components/linter-client.js';
 import { initFormEditor, renderFormEditor, isFormFocused, scrollFormToPath } from './components/form-editor.js';
@@ -243,7 +242,6 @@ async function init() {
   // Init UI components
   initTabs();
   initFileActions();
-  initMockPanel(() => getEditorContent());
   initRulesPanel();
   initFormEditor((newYaml) => {
     setEditorContent(newYaml);
