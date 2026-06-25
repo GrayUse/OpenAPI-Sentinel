@@ -11,6 +11,16 @@ let mockState = {
 
 let getSpecContent = null;
 
+function escapeHtml(unsafe) {
+  if (typeof unsafe !== 'string') return '';
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export function initMockPanel(getSpecFn) {
   getSpecContent = getSpecFn;
   renderMockPanel();

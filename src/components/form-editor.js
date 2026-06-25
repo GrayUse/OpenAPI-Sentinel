@@ -150,6 +150,36 @@ export async function renderFormEditor(yamlContent) {
                         <input type="checkbox" class="form-input" data-path="paths['${pathName}'].${method}.requestBody.required" ${op.requestBody?.required ? 'checked' : ''}>
                         Required
                       </label>
+                      
+                      <div style="margin-top: 4px; border-top: 1px dashed var(--c-border); padding-top: 8px;">
+                        <label style="font-size: 0.75rem; font-weight: 600; opacity: 0.8; margin-bottom: 6px; display: block;">Schema (application/json)</label>
+                        ${(function() {
+                          const reqSchema = op.requestBody?.content?.['application/json']?.schema || {};
+                          const reqRef = reqSchema.$ref;
+                          const reqProps = reqSchema.properties || {};
+                          
+                          if (reqRef || Object.keys(reqSchema).length === 0) {
+                            return \`
+                              <div style="display: flex; gap: 8px; align-items: center;">
+                                <span style="font-size: 0.8rem; opacity: 0.7; font-family: var(--ff-mono);">$ref:</span>
+                                <input type="text" class="form-input" data-path="paths['\${pathName}'].\${method}.requestBody.content['application/json'].schema.$ref" value="\${escapeHtml(reqRef || '')}" placeholder="#/components/schemas/ModelName" style="flex: 1; padding: 4px 8px; background: transparent; border: 1px solid var(--c-border); border-radius: 4px; color: var(--c-text-primary); font-family: var(--ff-mono); font-size: 0.8rem;">
+                              </div>
+                            \`;
+                          } else {
+                            return \`
+                              <div style="display: grid; gap: 4px;">
+                                \${Object.entries(reqProps).map(([pName, pObj]) => \`
+                                  <div style="display: flex; gap: 8px; align-items: center; font-size: 0.8rem; padding: 4px; background: rgba(0,0,0,0.1); border-radius: 4px;">
+                                    <span style="font-family: var(--ff-mono); width: 100px; font-weight: bold;">\${escapeHtml(pName)}</span>
+                                    <span style="color: var(--c-text-secondary); opacity: 0.8;">\${escapeHtml(pObj.type || 'string')}</span>
+                                  </div>
+                                \`).join('')}
+                                \${Object.keys(reqProps).length === 0 ? '<div style="font-size: 0.75rem; opacity: 0.5;">No properties defined inline. Add them in YAML.</div>' : ''}
+                              </div>
+                            \`;
+                          }
+                        })()}
+                      </div>
                     </div>
                   </div>
                 </div>
