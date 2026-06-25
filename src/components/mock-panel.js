@@ -130,23 +130,32 @@ async function startMock() {
   }
 
   try {
-    const res = await fetch('/api/mock/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ spec }),
-    });
-    const data = await res.json();
-
-    if (data.error) {
-      window.__showToast?.(data.error, 'error');
-      return;
-    }
-
+    const { default: YAML } = await import('yaml');
+    const doc = YAML.parse(spec);
+    
     mockState.running = true;
-    mockState.endpoints = data.endpoints || [];
+    mockState.endpoints = [];
     mockState.logs = [];
 
-    window.__showToast?.(`Mock server started — ${mockState.endpoints.length} endpoints`, 'success');
+    const paths = doc.paths || {};
+    for (const path in paths) {
+      for (const method in paths[path]) {
+        if (['get', 'post', 'put', 'delete', 'patch', 'options'].includes(method.toLowerCase())) {
+          mockState.endpoints.push({
+            path,
+            method: method.toUpperCase(),
+            summary: paths[path][method].summary || ''
+          });
+        }
+      }
+    }
+
+    // Attempt to store the dereferenced spec if possible, or fallback to YAML AST
+    // We can rely on Redocly's dereferencing if we tap into the current lint state, but 
+    // for simplicity, we can just use the raw doc + components.
+    mockState.specObj = doc;
+
+    window.__showToast?.(`Mock server started locally — ${mockState.endpoints.length} endpoints`, 'success');
     renderMockPanel();
   } catch (err) {
     window.__showToast?.('Failed to start mock server', 'error');
@@ -154,41 +163,63 @@ async function startMock() {
 }
 
 async function stopMock() {
-  try {
-    await fetch('/api/mock/stop', { method: 'POST' });
-    mockState.running = false;
-    mockState.endpoints = [];
-    mockState.logs = [];
-    window.__showToast?.('Mock server stopped', 'info');
-    renderMockPanel();
-  } catch (err) {
-    window.__showToast?.('Failed to stop mock server', 'error');
-  }
+  mockState.running = false;
+  mockState.endpoints = [];
+  mockState.logs = [];
+  window.__showToast?.('Mock server stopped', 'info');
+  renderMockPanel();
 }
 
 async function testEndpoint(method, path) {
-  // Replace path params with sample values
-  const testPath = path.replace(/\{([^}]+)\}/g, 'test-id');
-  const url = `/api/mock/proxy${testPath}`;
-
+  // Try to generate a fake response
   try {
-    const res = await fetch(url, { method: method.toUpperCase() });
-    const body = await res.json();
+    const { JSONSchemaFaker } = await import('json-schema-faker');
+    JSONSchemaFaker.option('useExamplesValue', true);
+    JSONSchemaFaker.option('alwaysFakeOptionals', true);
 
-    // Add to log
+    const doc = mockState.specObj;
+    const operation = doc.paths[path]?.[method.toLowerCase()];
+    if (!operation) throw new Error('Operation not found');
+
+    const responses = operation.responses || {};
+    const successRes = responses['200'] || responses['201'] || responses['default'] || Object.values(responses)[0];
+    
+    let schema = null;
+    let body = null;
+    
+    if (successRes && successRes.content && successRes.content['application/json']) {
+      schema = successRes.content['application/json'].schema;
+    }
+
+    if (!schema) {
+      body = { _mock_status: 'No JSON schema found to mock.' };
+    } else {
+      // Create a bundled schema with components to resolve refs locally if JSONSchemaFaker supports it,
+      // or rely on its built-in ref resolution if we pass the whole doc as components.
+      const fakeSchema = { ...schema, components: doc.components };
+      
+      try {
+        body = await JSONSchemaFaker.resolve(fakeSchema);
+      } catch (e) {
+        // Fallback synchronous generation if async fails
+        body = JSONSchemaFaker.generate(schema);
+      }
+    }
+
+    // Log the request
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    
+    const testPath = path.replace(/\{([^}]+)\}/g, 'test-id');
 
     mockState.logs.unshift({
       time,
       method: method.toUpperCase(),
       path: testPath,
-      status: res.status,
+      status: 200,
     });
 
-    // Keep last 50 logs
     if (mockState.logs.length > 50) mockState.logs = mockState.logs.slice(0, 50);
-
     renderMockPanel();
 
     // Show response
@@ -198,7 +229,10 @@ async function testEndpoint(method, path) {
       responseArea.style.display = 'block';
       responseBody.textContent = JSON.stringify(body, null, 2);
     }
+    
+    window.__showToast?.('Mock generated successfully', 'success');
   } catch (err) {
-    window.__showToast?.(`Request failed: ${err.message}`, 'error');
+    console.error(err);
+    window.__showToast?.('Mock generation failed: ' + err.message, 'error');
   }
 }
