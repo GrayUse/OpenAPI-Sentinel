@@ -44,9 +44,9 @@ function renderMockPanel() {
           ${mockState.running ? 'Running' : 'Stopped'}
         </span>
         ${mockState.running
-          ? '<button class="btn btn-danger" id="btn-mock-stop">Stop</button>'
-          : '<button class="btn btn-success" id="btn-mock-start">Start Mock Server</button>'
-        }
+      ? '<button class="btn btn-danger" id="btn-mock-stop">Stop</button>'
+      : '<button class="btn btn-success" id="btn-mock-start">Start Mock Server</button>'
+    }
       </div>
     </div>
 
@@ -76,8 +76,8 @@ function renderMockPanel() {
         <h3>Request Log</h3>
         <div class="mock-log-list" id="mock-log-list">
           ${mockState.logs.length === 0
-            ? '<div style="color:var(--c-text-tertiary);font-size:var(--fs-sm);padding:8px">No requests yet — click an endpoint to test it</div>'
-            : mockState.logs.map((log) => `
+        ? '<div style="color:var(--c-text-tertiary);font-size:var(--fs-sm);padding:8px">No requests yet — click an endpoint to test it</div>'
+        : mockState.logs.map((log) => `
               <div class="mock-log-entry">
                 <span class="timestamp">${log.time}</span>
                 <span class="method-badge ${log.method.toLowerCase()}" style="font-size:10px;padding:1px 6px;min-width:40px">${log.method}</span>
@@ -85,7 +85,7 @@ function renderMockPanel() {
                 <span class="status-code s${Math.floor(log.status / 100)}xx">${log.status}</span>
               </div>
             `).join('')
-          }
+      }
         </div>
       </div>
     ` : !mockState.running ? `
@@ -143,7 +143,7 @@ async function startMock() {
   try {
     const { default: YAML } = await import('yaml');
     const doc = YAML.parse(spec);
-    
+
     mockState.running = true;
     mockState.endpoints = [];
     mockState.logs = [];
@@ -194,10 +194,10 @@ async function testEndpoint(method, path) {
 
     const responses = operation.responses || {};
     const successRes = responses['200'] || responses['201'] || responses['default'] || Object.values(responses)[0];
-    
+
     let schema = null;
     let body = null;
-    
+
     if (successRes && successRes.content && successRes.content['application/json']) {
       schema = successRes.content['application/json'].schema;
     }
@@ -208,7 +208,7 @@ async function testEndpoint(method, path) {
       // Create a bundled schema with components to resolve refs locally if JSONSchemaFaker supports it,
       // or rely on its built-in ref resolution if we pass the whole doc as components.
       const fakeSchema = { ...schema, components: doc.components };
-      
+
       try {
         body = await JSONSchemaFaker.resolve(fakeSchema);
       } catch (e) {
@@ -220,7 +220,7 @@ async function testEndpoint(method, path) {
     // Log the request
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-    
+
     const testPath = path.replace(/\{([^}]+)\}/g, 'test-id');
 
     mockState.logs.unshift({
@@ -231,10 +231,10 @@ async function testEndpoint(method, path) {
     });
 
     if (mockState.logs.length > 50) mockState.logs = mockState.logs.slice(0, 50);
-    
+
     mockState.currentResponse = body;
     renderMockPanel();
-    
+
     window.__showToast?.('Mock generated successfully', 'success');
   } catch (err) {
     console.error(err);
