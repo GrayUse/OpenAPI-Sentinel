@@ -54,12 +54,12 @@ function renderMockPanel() {
         `).join('')}
       </div>
 
-      <div class="mock-response-preview" id="mock-response-area" style="display:none">
+      <div class="mock-response-preview" id="mock-response-area" style="display:${mockState.currentResponse ? 'block' : 'none'}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <span style="font-size:var(--fs-sm);font-weight:600;color:var(--c-text-secondary)">Response Preview</span>
           <button class="btn btn-ghost" id="btn-close-response" style="padding:4px 8px;font-size:var(--fs-xs)">Close</button>
         </div>
-        <pre id="mock-response-body"></pre>
+        <pre id="mock-response-body">${mockState.currentResponse ? escapeHtml(JSON.stringify(mockState.currentResponse, null, 2)) : ''}</pre>
       </div>
 
       <div class="mock-log">
@@ -118,7 +118,8 @@ function renderMockPanel() {
   });
 
   document.getElementById('btn-close-response')?.addEventListener('click', () => {
-    document.getElementById('mock-response-area').style.display = 'none';
+    mockState.currentResponse = null;
+    renderMockPanel();
   });
 }
 
@@ -220,15 +221,9 @@ async function testEndpoint(method, path) {
     });
 
     if (mockState.logs.length > 50) mockState.logs = mockState.logs.slice(0, 50);
+    
+    mockState.currentResponse = body;
     renderMockPanel();
-
-    // Show response
-    const responseArea = document.getElementById('mock-response-area');
-    const responseBody = document.getElementById('mock-response-body');
-    if (responseArea && responseBody) {
-      responseArea.style.display = 'block';
-      responseBody.textContent = JSON.stringify(body, null, 2);
-    }
     
     window.__showToast?.('Mock generated successfully', 'success');
   } catch (err) {

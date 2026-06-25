@@ -137,6 +137,24 @@ export async function renderFormEditor(yamlContent) {
                   </div>
                 </div>
 
+                <!-- Request Body -->
+                ${(['post', 'put', 'patch'].includes(method) || op.requestBody) ? `
+                <div style="border-top: 1px solid var(--c-border); padding-top: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <label style="font-size: 0.85rem; font-weight: 600;">Request Body</label>
+                  </div>
+                  <div style="display: grid; gap: 8px;">
+                    <div style="display: flex; gap: 8px; flex-direction: column; background: var(--c-bg-raised); padding: 8px; border-radius: 4px; border: 1px solid var(--c-border);">
+                      <textarea class="form-input" data-path="paths['${pathName}'].${method}.requestBody.description" rows="1" placeholder="Request body description..." style="width: 100%; padding: 4px 8px; background: transparent; border: 1px solid var(--c-border); border-radius: 4px; color: var(--c-text-primary); resize: vertical; font-size: 0.85rem;">${escapeHtml(op.requestBody?.description || '')}</textarea>
+                      <label style="display: flex; align-items: center; gap: 4px; font-size: 0.75rem; opacity: 0.8;">
+                        <input type="checkbox" class="form-input" data-path="paths['${pathName}'].${method}.requestBody.required" ${op.requestBody?.required ? 'checked' : ''}>
+                        Required
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                ` : ''}
+
                 <!-- Responses -->
                 <div style="border-top: 1px solid var(--c-border); padding-top: 16px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
