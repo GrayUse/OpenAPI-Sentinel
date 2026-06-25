@@ -12,7 +12,7 @@
 | ✅ **API Documentation** | Instant preview with Scalar API Reference |
 | ✅ **Mock Server** | One-click mock with auto-generated responses from schemas |
 | ✅ **Rule Management** | Configure linting severity per-rule with preset modes |
-| ✅ **Import/Export** | Stream download export for zero-friction spec saving |
+| ✅ **Export** | Stream download export for zero-friction spec saving |
 
 ## Why Sentinel?
 
