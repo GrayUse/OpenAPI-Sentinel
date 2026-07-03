@@ -9,8 +9,8 @@
 | ✅ **OpenAPI 3.0/3.1 Linting** | Powered by Redocly — deep validation with 50+ built-in rules, running entirely in your browser |
 | ✅ **Real-time Editor** | Monaco Editor with YAML/JSON auto-detection, syntax highlighting, and virtual scroll syncing |
 | ✅ **Visual Schema Editor** | Powerful Form View for easy Models/Schemas CRUD without writing YAML by hand |
+| ✅ **AST-Based Scroll Sync** | Seamless two-way binding: scrolling the visual form perfectly aligns the YAML editor to the exact AST node |
 | ✅ **API Documentation** | Instant preview with Scalar API Reference |
-| ✅ **Mock Server** | One-click mock with auto-generated responses from schemas |
 | ✅ **Rule Management** | Configure linting severity per-rule with preset modes |
 | ✅ **Export** | Stream download export for zero-friction spec saving |
 
@@ -42,7 +42,6 @@ Open `http://localhost:5173` in your browser.
 - **AST Manipulation**: `yaml`
 - **Linting**: `@redocly/openapi-core` (bundled via `vite-plugin-node-polyfills`)
 - **Docs**: Scalar API Reference
-- **Mock**: Custom schema-based faker using `json-schema-faker`
 
 ## Architecture
 
@@ -50,7 +49,7 @@ Open `http://localhost:5173` in your browser.
 ┌────────────────────────────────────────────────────────┐
 │                      Browser (SPA)                     │
 │  ┌────────┐ ┌─────────────┐ ┌──────────┐ ┌──────────┐  │
-│  │ Monaco │ │ Form Editor │ │ Scalar   │ │ Mock/Rule│  │
+│  │ Monaco │ │ Form Editor │ │ Scalar   │ │ Rule     │  │
 │  │ Editor │ │ (Visual)    │ │ Docs     │ │ Panel    │  │
 │  └────┬───┘ └──────┬──────┘ └────┬─────┘ └─────┬────┘  │
 │       │            │             │             │       │
